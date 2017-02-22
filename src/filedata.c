@@ -1531,22 +1531,29 @@ gchar *file_data_get_sidecar_path(FileData *fd, gboolean existing_only)
 	if (!file_data_can_write_sidecar(fd)) return NULL;
 
 	work = fd->parent ? fd->parent->sidecar_files : fd->sidecar_files;
+	gchar *extended_extension = g_strconcat(fd->parent ? fd->parent->extension : fd->extension, ".xmp", NULL);
 	while (work)
 		{
 		FileData *sfd = work->data;
 		work = work->next;
-		if (g_ascii_strcasecmp(sfd->extension, ".xmp") == 0)
+		if (g_ascii_strcasecmp(sfd->extension, ".xmp") == 0 || g_ascii_strcasecmp(sfd->extension, extended_extension) == 0)
 			{
 			sidecar_path = g_strdup(sfd->path);
 			break;
 			}
 		}
+	g_free(extended_extension);
 
 	if (!existing_only && !sidecar_path)
 		{
-		gchar *base = g_strndup(fd->path, fd->extension - fd->path);
-		sidecar_path = g_strconcat(base, ".xmp", NULL);
-		g_free(base);
+		if (options->metadata.sidecar_extended_name)
+			sidecar_path = g_strconcat(fd->path, ".xmp", NULL);
+		else
+			{
+			gchar *base = g_strndup(fd->path, fd->extension - fd->path);
+			sidecar_path = g_strconcat(base, ".xmp", NULL);
+			g_free(base);
+			}
 		}
 
 	return sidecar_path;
