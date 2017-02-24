@@ -1161,6 +1161,11 @@ static GList * file_data_basename_hash_insert(GHashTable *basename_hash, FileDat
 	return list;
 }
 
+static void file_data_basename_hash_insert_cb(gpointer fd, gpointer basename_hash)
+{
+	file_data_basename_hash_insert((GHashTable *)basename_hash, (FileData *)fd);
+}
+
 static void file_data_basename_hash_remove_list(gpointer key, gpointer value, gpointer data)
 {
 	filelist_free((GList *)value);
@@ -1225,6 +1230,7 @@ static gboolean filelist_read_real(const gchar *dir_path, GList **files, GList *
 	gchar *pathl;
 	GList *dlist = NULL;
 	GList *flist = NULL;
+	GList *xmp_files = NULL;
 	gint (*stat_func)(const gchar *path, struct stat *buf);
 	GHashTable *basename_hash = NULL;
 
@@ -1282,7 +1288,10 @@ static gboolean filelist_read_real(const gchar *dir_path, GList **files, GList *
 					flist = g_list_prepend(flist, fd);
 					if (fd->sidecar_priority && !fd->disable_grouping)
 						{
-						file_data_basename_hash_insert(basename_hash, fd);
+						if (strcmp(fd->extension, ".xmp") != 0)
+							file_data_basename_hash_insert(basename_hash, fd);
+						else
+							xmp_files = g_list_append(xmp_files, fd);
 						}
 					}
 				}
@@ -1300,6 +1309,12 @@ static gboolean filelist_read_real(const gchar *dir_path, GList **files, GList *
 	closedir(dp);
 
 	g_free(pathl);
+
+	if (xmp_files)
+		{
+		g_list_foreach(xmp_files,file_data_basename_hash_insert_cb,basename_hash);
+		g_list_free(xmp_files);
+		}
 
 	if (dirs) *dirs = dlist;
 
