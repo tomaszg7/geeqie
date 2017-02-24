@@ -1119,6 +1119,36 @@ static GList * file_data_basename_hash_insert(GHashTable *basename_hash, FileDat
 
 	list = g_hash_table_lookup(basename_hash, basename);
 
+	if (!list)
+		{
+		DEBUG_1("TG: basename_hash not found for %s",fd->path);
+		const gchar *parent_extension = registered_extension_from_path(basename);
+
+		if (parent_extension)
+			{
+			DEBUG_1("TG: parent extension %s",parent_extension);
+			gchar *parent_basename = g_strndup(basename, parent_extension - basename);
+			DEBUG_1("TG: parent basename %s",parent_basename);
+			FileData *parent_fd = g_hash_table_lookup(file_data_pool, basename);
+			if (parent_fd)
+				{
+				DEBUG_1("TG: parent fd found");
+				list = g_hash_table_lookup(basename_hash, parent_basename);
+				if (!g_list_find(list, parent_fd))
+					{
+					DEBUG_1("TG: parent fd doesn't fit");
+					g_free(parent_basename);
+					list = NULL;
+					}
+				else
+					{
+					g_free(basename);
+					basename = parent_basename;
+					}
+				}
+			}
+		}
+
 	if (!g_list_find(list, fd))
 		{
 		list = g_list_insert_sorted(list, file_data_ref(fd), file_data_sort_by_ext);

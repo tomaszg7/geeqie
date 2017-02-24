@@ -764,6 +764,7 @@ gboolean file_extension_match(const gchar *path, const gchar *ext)
 	return (p > e && g_ascii_strncasecmp(path + p - e, ext, e) == 0);
 }
 
+// TG: TODO check: Might not be compatible with image.jpg.xmp, i.e. ext=xmp, and basename=image. Not sure it matters.
 gchar *remove_extension_from_path(const gchar *path)
 {
 	gint p = 0, n = -1;
