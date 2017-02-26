@@ -41,6 +41,7 @@
 #include "ui_utildlg.h"	/* for locale warning dialog */
 #include "md5-util.h"
 
+#include "filefilter.h"
 /*
  *-----------------------------------------------------------------------------
  * generic file information and manipulation routines (public)
@@ -697,7 +698,7 @@ gchar *unique_filename_simple(const gchar *path)
 	name = filename_from_path(path);
 	if (!name) return NULL;
 
-	ext = extension_from_path(name);
+	ext = registered_extension_from_path(name);
 
 	if (!ext)
 		{
@@ -743,12 +744,6 @@ gchar *remove_level_from_path(const gchar *path)
 	return g_strndup(path, (gsize) n);
 }
 
-const gchar *extension_from_path(const gchar *path)
-{
-	if (!path) return NULL;
-	return strrchr(path, '.');
-}
-
 gboolean file_extension_match(const gchar *path, const gchar *ext)
 {
 	gint p;
@@ -764,21 +759,10 @@ gboolean file_extension_match(const gchar *path, const gchar *ext)
 	return (p > e && g_ascii_strncasecmp(path + p - e, ext, e) == 0);
 }
 
-// TG: TODO check: Might not be compatible with image.jpg.xmp, i.e. ext=xmp, and basename=image. Not sure it matters.
 gchar *remove_extension_from_path(const gchar *path)
 {
-	gint p = 0, n = -1;
-
 	if (!path) return NULL;
-
-	while (path[p])
-		{
-		if (path[p] == '.') n = p;
-		p++;
-		}
-	if (n < 0) n = p;
-
-	return g_strndup(path, (gsize) n);
+	return g_strndup(path, strlen(path)-strlen(registered_extension_from_path(path)));
 }
 
 void parse_out_relatives(gchar *path)

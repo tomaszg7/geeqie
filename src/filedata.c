@@ -2147,15 +2147,14 @@ static void file_data_update_ci_dest(FileData *fd, const gchar *dest_path)
 
 static void file_data_update_ci_dest_preserve_ext(FileData *fd, const gchar *dest_path)
 {
-	const gchar *extension = extension_from_path(fd->change->source);
-	gchar *base = remove_extension_from_path(dest_path);
+	gchar *dest_dir = remove_level_from_path(dest_path);
 	gchar *old_path = fd->change->dest;
 
-	fd->change->dest = g_strconcat(base, extension, NULL);
+	fd->change->dest = g_build_filename(dest_dir, fd->name, NULL);
 	file_data_update_planned_change_hash(fd, old_path, fd->change->dest);
 
 	g_free(old_path);
-	g_free(base);
+	g_free(dest_dir);
 }
 
 static void file_data_sc_update_ci(FileData *fd, const gchar *dest_path)
@@ -2424,7 +2423,7 @@ gint file_data_verify_ci(FileData *fd, GList *list)
 
 		if (!same)
 			{
-			const gchar *dest_ext = extension_from_path(fd->change->dest);
+			const gchar *dest_ext = registered_extension_from_path(fd->change->dest);
 			if (!dest_ext) dest_ext = "";
 			if (!options->file_filter.disable_file_extension_checks)
 				{
