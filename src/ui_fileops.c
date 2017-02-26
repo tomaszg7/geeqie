@@ -730,18 +730,14 @@ const gchar *filename_from_path(const gchar *path)
 
 gchar *remove_level_from_path(const gchar *path)
 {
-	gint p = 0, n = -1;
+	const gchar *base;
 
 	if (!path) return NULL;
 
-	while (path[p])
-		{
-		if (path[p] == G_DIR_SEPARATOR) n = p;
-		p++;
-		}
-	if (n <= 0) n++;
+	base = strrchr(path, G_DIR_SEPARATOR);
+	if (base) return g_strndup(path, strlen(path)-strlen(base));
 
-	return g_strndup(path, (gsize) n);
+	return NULL;
 }
 
 gboolean file_extension_match(const gchar *path, const gchar *ext)
