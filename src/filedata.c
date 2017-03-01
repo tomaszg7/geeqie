@@ -605,6 +605,7 @@ static void file_data_free(FileData *fd)
 	g_free(fd->original_path);
 	g_free(fd->collate_key_name);
 	g_free(fd->collate_key_name_nocase);
+	g_free(fd->extended_extension);
 	if (fd->thumb_pixbuf) g_object_unref(fd->thumb_pixbuf);
 	histmap_free(fd->histmap);
 
@@ -1144,6 +1145,7 @@ static GList * file_data_basename_hash_insert(GHashTable *basename_hash, FileDat
 					{
 					g_free(basename);
 					basename = parent_basename;
+					fd->extended_extension = g_strconcat(parent_extension, fd->extension, NULL);
 					}
 				}
 			}
@@ -2147,14 +2149,15 @@ static void file_data_update_ci_dest(FileData *fd, const gchar *dest_path)
 
 static void file_data_update_ci_dest_preserve_ext(FileData *fd, const gchar *dest_path)
 {
-	gchar *dest_dir = remove_level_from_path(dest_path);
+	const gchar *extension = registered_extension_from_path(fd->change->source);
+	gchar *base = remove_extension_from_path(dest_path);
 	gchar *old_path = fd->change->dest;
 
-	fd->change->dest = g_build_filename(dest_dir, fd->name, NULL);
+	fd->change->dest = g_strconcat(base, fd->extended_extension ? fd->extended_extension : extension, NULL);
 	file_data_update_planned_change_hash(fd, old_path, fd->change->dest);
 
 	g_free(old_path);
-	g_free(dest_dir);
+	g_free(base);
 }
 
 static void file_data_sc_update_ci(FileData *fd, const gchar *dest_path)
