@@ -536,7 +536,7 @@ struct _FileData {
 	gchar *path;
 	const gchar *name;
 	const gchar *extension;
-	const gchar *extended_extension;
+	gchar *extended_extension;
 	gchar *collate_key_name;
 	gchar *collate_key_name_nocase;
 	gint64 size;

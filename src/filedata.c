@@ -933,6 +933,8 @@ static void file_data_disconnect_sidecar_file(FileData *target, FileData *sfd)
 
 	target->sidecar_files = g_list_remove(target->sidecar_files, sfd);
 	sfd->parent = NULL;
+	g_free(sfd->extended_extension);
+	sfd->extended_extension = NULL;
 
 	file_data_unref(target);
 	file_data_unref(sfd);
