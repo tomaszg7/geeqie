@@ -19,24 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef MENU_H
-#define MENU_H
+#ifndef SHORTCUTS_H
+#define SHORTCUTS_H
 
-
-gpointer submenu_item_get_data(GtkWidget *menu);
-
-GtkWidget *submenu_add_edit(GtkWidget *menu, GtkWidget **menu_item, GCallback func, gpointer data, GList *fd_list);
-
-gchar *sort_type_get_text(SortType method);
-GtkWidget *submenu_add_sort(GtkWidget *menu, GCallback func, gpointer data,
-			    gboolean include_none, gboolean include_path,
-			    gboolean show_current, SortType type);
-GtkWidget *submenu_add_zoom(GtkWidget *menu, GCallback func, gpointer data,
-			    gboolean include_none, gboolean include_path,
-			    gboolean show_current, ZoomMode mode);
-gchar *alter_type_get_text(AlterType type);
-GtkWidget *submenu_add_alter(GtkWidget *menu, GCallback func, gpointer data);
-
+GtkWidget *shortcuts_new_default(LayoutWindow *lw);
 
 #endif
 /* vim: set shiftwidth=8 softtabstop=0 cindent cinoptions={1s: */

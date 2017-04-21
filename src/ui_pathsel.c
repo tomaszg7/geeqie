@@ -353,7 +353,7 @@ static void dest_dnd_set_data(GtkWidget *view,
 
 	list = g_list_append(list, path);
 
-	gchar **uris = uris_from_filelist(list);
+	gchar **uris = uris_from_pathlist(list);
 	gboolean ret = gtk_selection_data_set_uris(selection_data, uris);
 	if (!ret)
 		{
@@ -786,6 +786,7 @@ static void dest_new_dir_cb(GtkWidget *widget, gpointer data)
 
 		tree_edit_by_path(GTK_TREE_VIEW(dd->d_view), dd->right_click_path, 0, text,
 				  dest_view_rename_cb, dd);
+		gtk_entry_set_text(GTK_ENTRY(dd->entry), path);
 		}
 
 	g_free(path);

@@ -46,7 +46,7 @@
 #include "bar.h"
 #include "bar_sort.h"
 #include "preferences.h"
-
+#include "shortcuts.h"
 #ifdef HAVE_LIRC
 #include "lirc.h"
 #endif
@@ -183,6 +183,21 @@ static gboolean layout_set_current_cb(GtkWidget *widget, GdkEventFocus *event, g
 	return FALSE;
 }
 
+static void layout_box_folders_changed_cb(GtkWidget *widget, gpointer data)
+{
+	LayoutWindow *lw;
+	GList *work;
+
+/* FIXME: this is probably not the correct way to implement this */
+	work = layout_window_list;
+	while (work)
+		{
+		lw = work->data;
+		lw->options.folder_window.vdivider_pos = gtk_paned_get_position(GTK_PANED(widget));
+		work = work->next;
+		}
+}
+
 /*
  *-----------------------------------------------------------------------------
  * menu, toolbar, and dir view
@@ -272,6 +287,8 @@ static void layout_path_entry_tab_append_cb(const gchar *path, gpointer data, gi
 static GtkWidget *layout_tool_setup(LayoutWindow *lw)
 {
 	GtkWidget *box;
+	GtkWidget *box_folders;
+	GtkWidget *scd;
 	GtkWidget *menu_bar;
 	GtkWidget *tabcomp;
 	GtkWidget *toolbar;
@@ -300,14 +317,25 @@ static GtkWidget *layout_tool_setup(LayoutWindow *lw)
 			 G_CALLBACK(layout_path_entry_changed_cb), lw);
 #endif
 
+	box_folders = GTK_WIDGET(gtk_hpaned_new());
+	gtk_box_pack_start(GTK_BOX(box), box_folders, TRUE, TRUE, 0);
+
 	lw->vd = vd_new(lw->options.dir_view_type, lw->dir_fd);
 	vd_set_layout(lw->vd, lw);
 	vd_set_select_func(lw->vd, layout_vd_select_cb, lw);
 
 	lw->dir_view = lw->vd->widget;
-
-	gtk_box_pack_start(GTK_BOX(box), lw->dir_view, TRUE, TRUE, 0);
+	gtk_paned_add2(GTK_PANED(box_folders), lw->dir_view);
 	gtk_widget_show(lw->dir_view);
+
+	scd = shortcuts_new_default(lw);
+	gtk_paned_add1(GTK_PANED(box_folders), scd);
+	gtk_paned_set_position(GTK_PANED(box_folders), lw->options.folder_window.vdivider_pos);
+
+	gtk_widget_show(box_folders);
+
+	g_signal_connect(G_OBJECT(box_folders), "notify::position",
+			 G_CALLBACK(layout_box_folders_changed_cb), lw);
 
 	gtk_widget_show(box);
 
@@ -396,6 +424,113 @@ static GtkWidget *layout_sort_button(LayoutWindow *lw)
 	g_signal_connect(G_OBJECT(button), "clicked",
 			 G_CALLBACK(layout_sort_button_press_cb), lw);
 	gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
+
+	return button;
+}
+
+static void layout_zoom_menu_cb(GtkWidget *widget, gpointer data)
+{
+	ZoomMode mode;
+
+	if (!gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(widget))) return;
+
+	mode = (ZoomMode)GPOINTER_TO_INT(data);
+	options->image.zoom_mode = mode;
+}
+
+static void layout_scroll_menu_cb(GtkWidget *widget, gpointer data)
+{
+	guint scroll_type;
+
+	if (!gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(widget))) return;
+
+	scroll_type = GPOINTER_TO_UINT(data);
+	options->image.scroll_reset_method = scroll_type;
+	image_options_sync();
+}
+
+static void layout_zoom_menu_hide_cb(GtkWidget *widget, gpointer data)
+{
+	/* destroy the menu */
+	g_object_unref(widget);
+}
+
+static void layout_zoom_button_press_cb(GtkWidget *widget, gpointer data)
+{
+	LayoutWindow *lw = data;
+	GtkWidget *menu;
+	GdkEvent *event;
+	guint32 etime;
+
+	menu = submenu_add_zoom(NULL, G_CALLBACK(layout_zoom_menu_cb),
+			lw, FALSE, FALSE, TRUE, options->image.zoom_mode);
+
+	/* take ownership of menu */
+#ifdef GTK_OBJECT_FLOATING
+	/* GTK+ < 2.10 */
+	g_object_ref(G_OBJECT(menu));
+	gtk_object_sink(GTK_OBJECT(menu));
+#else
+	/* GTK+ >= 2.10 */
+	g_object_ref_sink(G_OBJECT(menu));
+#endif
+
+	menu_item_add_divider(menu);
+
+	menu_item_add_radio(menu, _("Scroll to top left corner"),
+			GUINT_TO_POINTER(SCROLL_RESET_TOPLEFT),
+			options->image.scroll_reset_method == SCROLL_RESET_TOPLEFT,
+			G_CALLBACK(layout_scroll_menu_cb),
+			GUINT_TO_POINTER(SCROLL_RESET_TOPLEFT));
+	menu_item_add_radio(menu, _("Scroll to image center"),
+			GUINT_TO_POINTER(SCROLL_RESET_CENTER),
+			options->image.scroll_reset_method == SCROLL_RESET_CENTER,
+			G_CALLBACK(layout_scroll_menu_cb),
+			GUINT_TO_POINTER(SCROLL_RESET_CENTER));
+	menu_item_add_radio(menu, _("Keep the region from previous image"),
+			GUINT_TO_POINTER(SCROLL_RESET_NOCHANGE),
+			options->image.scroll_reset_method == SCROLL_RESET_NOCHANGE,
+			G_CALLBACK(layout_scroll_menu_cb),
+			GUINT_TO_POINTER(SCROLL_RESET_NOCHANGE));
+
+	g_signal_connect(G_OBJECT(menu), "selection_done",
+			 G_CALLBACK(layout_zoom_menu_hide_cb), NULL);
+
+	event = gtk_get_current_event();
+	if (event)
+		{
+		etime = gdk_event_get_time(event);
+		gdk_event_free(event);
+		}
+	else
+		{
+		etime = 0;
+		}
+
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL, 0, etime);
+}
+
+static GtkWidget *layout_zoom_button(LayoutWindow *lw, GtkWidget *box, gint size, gboolean expand)
+{
+	GtkWidget *button;
+	GtkWidget *frame;
+
+
+	frame = gtk_frame_new(NULL);
+	if (size) gtk_widget_set_size_request(frame, size, -1);
+	gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+
+	gtk_box_pack_start(GTK_BOX(box), frame, FALSE, FALSE, 0);
+
+	gtk_widget_show(frame);
+
+	button = gtk_button_new_with_label("1:1");
+	g_signal_connect(G_OBJECT(button), "clicked",
+			 G_CALLBACK(layout_zoom_button_press_cb), lw);
+	gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
+
+	gtk_container_add(GTK_CONTAINER(frame), button);
+	gtk_widget_show(button);
 
 	return button;
 }
@@ -508,7 +643,7 @@ void layout_status_update_image(LayoutWindow *lw)
 		gchar *b;
 
 		text = image_zoom_get_as_text(lw->image);
-		gtk_label_set_text(GTK_LABEL(lw->info_zoom), text);
+		gtk_button_set_label(GTK_BUTTON(lw->info_zoom), text);
 		g_free(text);
 
 		b = image_get_fd(lw->image) ? text_from_size(image_get_fd(lw->image)->size) : g_strdup("0");
@@ -638,8 +773,10 @@ static void layout_status_setup(LayoutWindow *lw, GtkWidget *box, gboolean small
 	gtk_widget_show(toolbar_frame);
 	gtk_widget_show(toolbar);
 	gtk_box_pack_end(GTK_BOX(hbox), toolbar_frame, FALSE, FALSE, 0);
-	lw->info_zoom = layout_status_label(NULL, hbox, FALSE, ZOOM_LABEL_WIDTH, FALSE);
-	gtk_widget_set_tooltip_text(GTK_WIDGET(lw->info_zoom), _("Image zoom level"));
+	lw->info_zoom = layout_zoom_button(lw, hbox, ZOOM_LABEL_WIDTH, TRUE);
+	gtk_widget_set_tooltip_text(GTK_WIDGET(lw->info_zoom), _("Select zoom mode"));
+	gtk_widget_show(lw->info_zoom);
+
 	if (small_format)
 		{
 		hbox = gtk_hbox_new(FALSE, 0);
@@ -1208,7 +1345,7 @@ gboolean layout_geometry_get_tools(LayoutWindow *lw, gint *x, gint *y, gint *w, 
 
 static void layout_tools_geometry_sync(LayoutWindow *lw)
 {
-	layout_geometry_get_tools(lw, &lw->options.float_window.x, &lw->options.float_window.x,
+	layout_geometry_get_tools(lw, &lw->options.float_window.x, &lw->options.float_window.y,
 				  &lw->options.float_window.w, &lw->options.float_window.h, &lw->options.float_window.vdivider_pos);
 }
 
@@ -2277,6 +2414,9 @@ void layout_write_attributes(LayoutOptions *layout, GString *outstr, gint indent
 	WRITE_NL(); WRITE_INT(*layout, main_window.vdivider_pos);
 	WRITE_SEPARATOR();
 
+	WRITE_NL(); WRITE_INT(*layout, folder_window.vdivider_pos);
+	WRITE_SEPARATOR();
+
 	WRITE_NL(); WRITE_INT(*layout, float_window.x);
 	WRITE_NL(); WRITE_INT(*layout, float_window.y);
 	WRITE_NL(); WRITE_INT(*layout, float_window.w);
@@ -2350,6 +2490,8 @@ void layout_load_attributes(LayoutOptions *layout, const gchar **attribute_names
 		if (READ_BOOL(*layout, main_window.maximized)) continue;
 		if (READ_INT(*layout, main_window.hdivider_pos)) continue;
 		if (READ_INT(*layout, main_window.vdivider_pos)) continue;
+
+		if (READ_INT_CLAMP(*layout, folder_window.vdivider_pos, 1, 1000)) continue;
 
 		if (READ_INT(*layout, float_window.x)) continue;
 		if (READ_INT(*layout, float_window.y)) continue;

@@ -479,7 +479,7 @@ struct _ImageWindow
 
 	/* button, scroll functions */
 	void (*func_button)(ImageWindow *, GdkEventButton *event, gpointer);
-	void (*func_drag)(ImageWindow *, GdkEventButton *event, gdouble dx, gdouble dy, gpointer);
+	void (*func_drag)(ImageWindow *, GdkEventMotion *event, gdouble dx, gdouble dy, gpointer);
 	void (*func_scroll)(ImageWindow *, GdkEventScroll *event, gpointer);
 	void (*func_focus_in)(ImageWindow *, gpointer);
 
@@ -517,6 +517,8 @@ struct _ImageWindow
 	gint orientation;
 	gboolean desaturate;
 	gint user_stereo;
+
+	gboolean mouse_wheel_mode;
 };
 
 #define FILEDATA_MARKS_SIZE 6
@@ -605,6 +607,10 @@ struct _LayoutOptions
 		gint y;
 		gint vdivider_pos;
 	} float_window;
+
+	struct {
+		gint vdivider_pos;
+	} folder_window;
 
 	struct {
 		gint w;
