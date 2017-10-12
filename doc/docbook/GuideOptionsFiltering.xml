@@ -109,6 +109,15 @@
             <emphasis>Metadata</emphasis>
           </listitem>
         </varlistentry>
+        <varlistentry>
+          <term>
+            <literal>%video</literal>
+          </term>
+          <listitem>
+            expands to all files listed in class
+            <emphasis>Video</emphasis>
+          </listitem>
+        </varlistentry>
       </variablelist>
     </para>
     <para />
